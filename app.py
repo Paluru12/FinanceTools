@@ -5,12 +5,12 @@ import seaborn as sns
 import yfinance as yf
 from shiny.express import input, render, ui
 
-sns.set()
+sns.set_theme()
 
 ui.panel_title("Finance Bro")
 
 # Input for stock symbol and price how many days ago
-ui.input_text("ticker_val", "Ticker Symbol", "aapl, nvda")
+ui.input_text("ticker_val", "Ticker Symbol(s)", "AAPL, NVDA", placeholder="AAPL, NVDA")
 ui.input_numeric("days_ago", "Number of Days", 30)
 
 
@@ -23,7 +23,9 @@ def text_val():
         all_data.append(yf.download(symbol, period="5y"))
     stock_data = all_data[0]["Close"]
     stock_price = stock_data[-1 - int(input.days_ago())]
-    return f"Closing  Price of {str.upper(all_symbols[0])} {input.days_ago()} Trading Days Ago: ${round(stock_price, 2)}"
+    return_string =  f"Closing  Price of {str.upper(all_symbols[0])} {input.days_ago()}"
+    return_string += "Trading Days Ago: ${:0.2f}".format(stock_price)
+    return return_string
 
 
 @render.plot
@@ -39,7 +41,7 @@ def stock_chart():
         stock_data = list(data["Close"])
         stock_names.append(yf.Ticker(symbol).info["longName"])
         stock_values = stock_data[-1 - input.days_ago() :]
-        plt.plot(range(len(stock_values)), stock_values, label=symbol)
+        plt.plot(range(len(stock_values)), stock_values, label=str.upper(symbol))
     plt.title(f"Stock Chart for {' and '.join(stock_names)}")
     plt.legend()
     step = max(int(input.days_ago() / 15), 1)
