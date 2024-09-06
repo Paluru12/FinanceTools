@@ -4,14 +4,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
 
-ui.input_slider("val", "Stock Value ___ days ago:", min=0, max=250, value=50)
+#Input for stock symbol and price how many days ago
+ui.input_text("ticker_val", "ticker symbol", "TXG")
+ui.input_text("days_ago", "days ago", "0")
 data = yf.download("TXG", period="1y")
 
 @render.text
-def slider_val():
+def text_val():
+    data = yf.download(input.ticker_val(), period="1y")
     stock_data = data['Close']
-    stock_price = stock_data[-1-input.val()]
-    return f"Closing  Price {input.val()} Trading Days Ago: {stock_price}"
+    stock_price = stock_data[-1-int(input.days_ago())]
+    return f"Closing  Price {input.days_ago()} Trading Days Ago: {stock_price}"
 
 @render.plot
 def stock_chart():
