@@ -1,53 +1,50 @@
 # Shiny app for displaying stock info
 
-import matplotlib.pyplot as plt
-import seaborn as sns
+import pandas as pd
+import plotly.express as px
 import yfinance as yf
 from shiny.express import input, render, ui
+from shinywidgets import render_widget 
 
-sns.set_theme()
+PERIOD = "max"
 
 ui.panel_title("Finance Bro")
 
 # Input for stock symbol and price how many days ago
-ui.input_text("ticker_val", "Ticker Symbol(s)", "AAPL, NVDA", placeholder="AAPL, NVDA")
-ui.input_numeric("days_ago", "Number of Days", 30)
+ui.input_text("ticker_val", "Ticker Symbol(s)", "VOO", placeholder="AAPL, NVDA")
+ui.input_numeric("days_ago", "Number of Trading Days", 30)
+ui.input_checkbox("normalize", "Relative Growth")
 
 
-@render.text
-def text_val():
-    """Loads stock data and displays stock price."""
-    all_symbols = [i.strip() for i in input.ticker_val().split(",")]
-    all_data = []
-    for symbol in all_symbols:
-        all_data.append(yf.download(symbol, period="5y"))
-    stock_data = all_data[0]["Close"]
-    stock_price = stock_data[-1 - int(input.days_ago())]
-    return_string =  f"Closing  Price of {str.upper(all_symbols[0])} {input.days_ago()}"
-    return_string += "Trading Days Ago: ${:0.2f}".format(stock_price)
-    return return_string
+def get_date(dates, days_ago):
+    """Return the date <days_ago> trading days ago if it is within the range of dates."""
+    try:
+        return dates[-1-days_ago]
+    except IndexError:
+        return dates[0]
 
 
-@render.plot
-def stock_chart():
+@render_widget
+def plotly_stock_chart():
     """Creates stock chart."""
     all_symbols = [i.strip() for i in input.ticker_val().split(",")]
     all_data = []
+    #TODO: Convert this to one API call (pandas multi indices suck)
     for symbol in all_symbols:
-        all_data.append(yf.download(symbol, period="5y"))
-    plt.figure()
-    stock_names = []
-    for symbol, data in zip(all_symbols, all_data):
-        stock_data = list(data["Close"])
-        stock_names.append(yf.Ticker(symbol).info["longName"])
-        stock_values = stock_data[-1 - input.days_ago() :]
-        plt.plot(range(len(stock_values)), stock_values, label=str.upper(symbol))
-    plt.title(f"Stock Chart for {' and '.join(stock_names)}")
-    plt.legend()
-    step = max(int(input.days_ago() / 15), 1)
-    stock_dates = [
-        i.strftime("%Y-%m-%d") for i in all_data[0].index[-1 - input.days_ago() :]
-    ][::step]
-    plt.xticks(ticks=range(0, len(stock_values), step), labels=stock_dates, rotation=45)
-    plt.xlabel("Date")
-    plt.ylabel("Closing Price ($)")
+        df = yf.download(symbol, period=PERIOD)
+        df['Symbol'] = symbol
+        from_date = get_date(df.index, input.days_ago())
+        df = df.reset_index()
+        df = df[df["Date"] >= from_date]
+        if(input.normalize()):
+            df['Close'] = 100 * (df['Close'] / float(df[df['Date'] == from_date]['Close'].iloc[0]) - 1)
+        all_data.append(df)
+    df = pd.concat(all_data)
+    fig = px.line(
+        df, x="Date", y="Close", color='Symbol'
+    ).update_layout(
+        title=f"Closing price of {' and '.join(all_symbols)}",
+        xaxis_title="Date",
+        yaxis_title="Relative Growth (%)" if input.normalize() else "Closing Price ($)"
+    )
+    return fig
