@@ -29,10 +29,11 @@ def plotly_stock_chart():
     """Creates stock chart."""
     all_symbols = [i.strip() for i in input.ticker_val().split(",")]
     all_data = []
+    stock_names = [yf.Ticker(symbol).info["longName"] for symbol in all_symbols]
     #TODO: Convert this to one API call (pandas multi indices suck)
     for symbol in all_symbols:
         df = yf.download(symbol, period=PERIOD)
-        df['Symbol'] = symbol
+        df['Symbol'] = str.upper(symbol)
         from_date = get_date(df.index, input.days_ago())
         df = df.reset_index()
         df = df[df["Date"] >= from_date]
@@ -43,7 +44,8 @@ def plotly_stock_chart():
     fig = px.line(
         df, x="Date", y="Close", color='Symbol'
     ).update_layout(
-        title=f"Closing price of {' and '.join(all_symbols)}",
+        title=f"Closing price of {' and '.join(stock_names)}",
+        title_x=0.5,
         xaxis_title="Date",
         yaxis_title="Relative Growth (%)" if input.normalize() else "Closing Price ($)"
     )
