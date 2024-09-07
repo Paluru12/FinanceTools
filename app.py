@@ -11,8 +11,9 @@ PERIOD = "max"
 ui.panel_title("Finance Bro")
 
 # Input for stock symbol and price how many days ago
-ui.input_text("ticker_val", "Ticker Symbol(s)", "VOO", placeholder="AAPL, NVDA")
-ui.input_numeric("days_ago", "Number of Trading Days", 30)
+with ui.layout_column_wrap(gap="2rem"):
+    ui.input_text("ticker_val", "Ticker Symbol(s)", "VOO", placeholder="AAPL, NVDA")
+    ui.input_numeric("days_ago", "Number of Trading Days", 30)
 ui.input_checkbox("normalize", "Relative Growth")
 
 
