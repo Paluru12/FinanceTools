@@ -5,7 +5,6 @@ import plotly.express as px
 import yfinance as yf
 from shiny import App, reactive, ui, render
 from shinywidgets import render_widget, output_widget
-from shinyswatch import theme
 
 PERIOD = "max"
 
@@ -19,22 +18,29 @@ def get_date(dates, days_ago):
 def get_news(symbol):
     return yf.Ticker(symbol).news
 
-app_ui = ui.page_fluid(
-    ui.panel_title("Finance Bro"),
-    ui.layout_column_wrap(
-        ui.input_text("ticker_val", "Ticker Symbol(s)", "MSFT, AAPL", placeholder="AAPL, NVDA"),
-        ui.input_numeric("days_ago", "Number of Trading Days", 30, min=1)
+app_ui = ui.page_navbar(
+    ui.nav_panel(
+        "Stock Chart",
+        ui.layout_column_wrap(
+            ui.input_text("ticker_val", "Ticker Symbol(s)", "MSFT, AAPL", placeholder="AAPL, NVDA"),
+            ui.input_numeric("days_ago", "Number of Trading Days", 30, min=1)
+        ),
+        ui.input_checkbox("normalize", "Relative Growth"),
+        ui.input_action_button("update", "Update"),
+        output_widget("plotly_stock_chart"),
+        ui.output_ui("make_news_table"),
     ),
-    ui.input_checkbox("normalize", "Relative Growth"),
-    ui.input_action_button("update", "Update"),
-    output_widget("plotly_stock_chart"),
-    ui.output_ui("make_news_table"),
-    theme=theme.darkly
+    ui.nav_panel(
+        "Portfolio",
+    ),
+    ui.nav_spacer(), 
+    ui.nav_control(ui.input_dark_mode(id="light", mode="light")),
+    title="Finance Bro",
 )
 
 def server(input, output, session):
     @render_widget
-    @reactive.event(input.update, ignore_none=False)
+    @reactive.event(input.update, input.light, ignore_none=False)
     def plotly_stock_chart():
         """Creates stock chart."""
         all_symbols = [i.strip() for i in input.ticker_val().split(",")]
@@ -52,7 +58,11 @@ def server(input, output, session):
             all_data.append(df)
         df = pd.concat(all_data)
         fig = px.line(
-            df, x="Date", y="Close", color='Symbol', template="plotly_dark"
+            df, 
+            x="Date", 
+            y="Close", 
+            color='Symbol', 
+            template="plotly_white" if input.light() == 'light' else "plotly_dark"
         ).update_layout(
             title=f"Closing price of {' and '.join(stock_names)}",
             title_x=0.5,
@@ -81,12 +91,15 @@ def server(input, output, session):
                             ) 
                             for item in get_news(symbol)
                         ],
-                        id=f"{symbol}_news"
+                        id=f"{symbol}_news",
+                        open=False
                     )
                 )
                 for symbol in all_symbols
-            ]
+            ],
+            title="News"
         )
+        return table
         return ui.card(
             ui.card_header("News"),
             ui.card_body(table)
